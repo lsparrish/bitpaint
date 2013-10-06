@@ -70,7 +70,7 @@ rpcpwd  = config.get('bitcoind', 'rpcpwd')
 
 # Connect to bitcoind
 if len(rpcuser) == 0 and len(rpcpwd) == 0:
-	bitcoind_connection_string = "http://s:%s" % (rpchost,rpcport)
+	bitcoind_connection_string = "http://%s:%s" % (rpchost,rpcport)
 else:
 	bitcoind_connection_string = "http://%s:%s@%s:%s" % (rpcuser,rpcpwd,rpchost,rpcport)
 sp = jsonrpc.ServiceProxy(bitcoind_connection_string)
@@ -81,12 +81,12 @@ sp = jsonrpc.ServiceProxy(bitcoind_connection_string)
 ### Start: Address Generation code
 # The following code was yoinked from addrgen.py
 # Thanks to: Joric/bitcoin-dev, june 2012, public domain
-ssl = ctypes.cdll.LoadLibrary (ctypes.util.find_library ('ssl') or 'libeay32')
 
 def check_result (val, func, args):
 	if val == 0: raise ValueError
 	else: return ctypes.c_void_p (val)
 
+ssl = ctypes.cdll.LoadLibrary (ctypes.util.find_library ('ssl') or 'libeay32')
 ssl.EC_KEY_new_by_curve_name.restype = ctypes.c_void_p
 ssl.EC_KEY_new_by_curve_name.errcheck = check_result
 
@@ -262,8 +262,8 @@ def b58decode(v, length):
 def makek():
 	# Create a dictionary with address as key and private-key
 	# as value
-	a = config.get('HoldingAddresses', 'addresses').split("+")
-	p = config.get('HoldingAddresses', 'private_keys').split("+")
+	a = config.get('HoldingAddresses', 'addresses').split("::")
+	p = config.get('HoldingAddresses', 'private_keys').split("::")
 	k = {}
 	for a in zip(a,p):
 		k[a[0]] = a[1]
@@ -277,7 +277,7 @@ def maketx(inputs, outputs, send=False):
 	ip = []
 	for txid,vout,_ in inputs:
 		ip.append({"txid": txid, "vout": vout})
-	op = collections.OrderedDict()
+	op = {}
 	for addr,amnt in outputs:
 		op[addr] = AmountToJSON(amnt)
 	tx = sp.createrawtransaction(ip,op)
@@ -354,7 +354,7 @@ def getaddresstxs(address):
 
 def getholderschange(txid):
 	# Get a list of the new holders and old holders represented by a
-	# single transaction, given as the tx-id.
+	# single transaction, given as the txid.
 	tid = txid.split(":")
 	tx = gettx(tid[0])
 	new_holders = []
@@ -497,7 +497,7 @@ def get_non_asset_funds(addr):
 	asset_txids = []
 	for s in config.sections():
 		if s in reserved_sections: continue
-		for txid in config.get(s, 'txid').split("+"):
+		for txid in config.get(s, 'txid').split("::"):
 			asset_txids.append(txid)
 	naf = []
 	for u in unspent:
@@ -516,8 +516,8 @@ def generate_holding_address():
 	addresses = config.get('HoldingAddresses', 'addresses')
 	private_keys = config.get('HoldingAddresses', 'private_keys')
 	if len(addresses) > 5:
-		config.set('HoldingAddresses', 'addresses', '+'.join([addresses,addr]))
-		config.set('HoldingAddresses', 'private_keys', '+'.join([private_keys,pkey]))
+		config.set('HoldingAddresses', 'addresses', '::'.join([addresses,addr]))
+		config.set('HoldingAddresses', 'private_keys', '::'.join([private_keys,pkey]))
 	else:
 		config.set('HoldingAddresses', 'addresses', addr)
 		config.set('HoldingAddresses', 'private_keys', pkey)
@@ -534,12 +534,12 @@ def update_tracked_coins(name):
 	holding_txids = ""
 	total = 0.0
 	for h in current_holders:
-		holding_addresses += "+" + h[0]
-		holding_amounts += "+" + str(h[1])
-		holding_txids += "+" + h[2]
-	config.set(name, "holders", holding_addresses[1:])
-	config.set(name, "amounts", holding_amounts[1:])
-	config.set(name, "txid", holding_txids[1:])
+		holding_addresses += "::" + h[0]
+		holding_amounts += "::" + str(h[1])
+		holding_txids += "::" + h[2]
+	config.set(name, "holders", holding_addresses[2:])
+	config.set(name, "amounts", holding_amounts[2:])
+	config.set(name, "txid", holding_txids[2:])
 	config.write(open(config_file,'w'))
 
 def start_tracking_coins(name,txid):
@@ -558,9 +558,9 @@ def start_tracking_coins(name,txid):
 	update_tracked_coins(name)
 
 def show_holders(name):
-	holders = config.get(name, "holders").split("+")
-	amounts = config.get(name, "amounts").split("+")
-	txids = config.get(name,"txid").split("+")
+	holders = config.get(name, "holders").split("::")
+	amounts = config.get(name, "amounts").split("::")
+	txids = config.get(name,"txid").split("::")
 	total = 0.0
 	print "*** %s ***" % (name,)
 	for h in zip(holders,amounts,txids):
@@ -570,12 +570,12 @@ def show_holders(name):
 
 def show_my_holdings():
 	sections = config.sections()
-	my_holding_addresses = config.get('HoldingAddresses', 'addresses').split("+")
+	my_holding_addresses = config.get('HoldingAddresses', 'addresses').split("::")
 	for s in sections:
 		if s in reserved_sections: continue
-		holders = config.get(s, "holders").split("+")
-		amounts = config.get(s, "amounts").split("+")
-		txids = config.get(s, "txid").split("+")
+		holders = config.get(s, "holders").split("::")
+		amounts = config.get(s, "amounts").split("::")
+		txids = config.get(s, "txid").split("::")
 		for h in holders:
 			if h in my_holding_addresses:
 				total_dividends = 0.0
@@ -584,7 +584,7 @@ def show_my_holdings():
 				print s,amounts[holders.index(h)],"( div:",total_dividends,")",h,txids[holders.index(h)]
 
 def show_my_holding_addresses():
-	my_holding_addresses = config.get('HoldingAddresses', 'addresses').split("+")
+	my_holding_addresses = config.get('HoldingAddresses', 'addresses').split("::")
 	for a in my_holding_addresses:
 		print a
 
@@ -611,8 +611,8 @@ def transfer_asset(sender, receivers,fee_size=None):
 	raw_transaction = maketx(tx_input, tx_outputs)
 
 def pay_to_shareholders(name, wallet_acct, total_payment_amount):
-	holders = config.get(name, "holders").split("+")
-	amounts = config.get(name, "amounts").split("+")
+	holders = config.get(name, "holders").split("::")
+	amounts = config.get(name, "amounts").split("::")
 	total = 0.0
 	for a in amounts:
 		total += float(a)
