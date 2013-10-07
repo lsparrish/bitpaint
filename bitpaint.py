@@ -77,6 +77,32 @@ sp = jsonrpc.ServiceProxy(bitcoind_connection_string)
 
 ### End: Create/Read Config
 
+### Start: Config list helper functions
+# Get a newline-delimited list from the config file
+
+def configListGet(section, item):
+    l=[]
+    for s in config.get(section, item).split('\n'):
+        s.lstrip()
+        if l != '':
+            l.append(s)
+    if l != []: l.remove('')
+    return l
+
+def configListSet(section, item, data):
+    datastring='\n'+'\n'.join(data)
+    config.set(section, item, datastring)
+
+def configListAppendValue(section, item, value):
+    data=configListGet(section, item)
+    data.append(value)
+    configListSet(section, item, data)
+
+def configListRemoveValue(section, item, value):
+    data=configListGet(section, item).remove(value)
+    configListSet(section, item, data)
+
+### End: Config list helper functions
 
 ### Start: Address Generation code
 # The following code was yoinked from addrgen.py
