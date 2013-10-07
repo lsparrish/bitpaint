@@ -372,7 +372,8 @@ def getaddresstxs(address):
     # Get all transactions associated with an address.
     # Uses blockchain.info to get this, bitcoind API
     # apparently has no equivalent function.
-    address_info = json.loads(urllib2.urlopen("http://blockchain.info/address/%s?format=json"%(address,) ).read())
+    address_url="http://blockchain.info/address/"+address+"?format=json"
+    address_info = json.loads(urllib2.urlopen(address_url).read())
     tx_list = []
     for tx in address_info['txs']:
         tx_list.append(tx['hash'])
@@ -539,7 +540,6 @@ def get_non_asset_funds(addr):
 def generate_holding_address():
     # Generate an address, add it to the config file
     addr, pkey = get_addr(gen_eckey())
-    addresses, private_keys = configListGet("HoldingAddresses", "addresses"), configListGet("HoldingAddresses", "private_keys")
     configListAppendValue("HoldingAddresses", "addresses", addr)
     configListAppendValue("HoldingAddresses", "private_keys", pkey)
     config.write(open(config_file,'w'))
@@ -563,7 +563,7 @@ def update_tracked_coins(assetname):
     configListSet(assetname, "txid", holding_txids)
     config.write(open(config_file,'w'))
 
-def start_tracking_coins(assetname,txid):
+def start_tracking_coins(assetname,txid_n):
     # Give a name of a tracked coin, together with a
     # root output that will be used to track it.
     # Write this to the config file, and update the
@@ -571,10 +571,10 @@ def start_tracking_coins(assetname,txid):
     if assetname in config.sections():
         return assetname+" already exists."
     config.add_section(assetname)
-    config.set(assetname, "root_tx", [txid])
-    config.set(assetname, "holders", "[]")
-    config.set(assetname, "amounts", "[]")
-    config.set(assetname, "txid", "[]")
+    configListSet(assetname, "root_tx", [txid_n])
+    configListSet(assetname, "holders", [])
+    configListSet(assetname, "amounts", [])
+    configListSet(assetname, "txid", [])
     config.write(open(config_file,'w'))
     update_tracked_coins(assetname)
 
@@ -663,7 +663,7 @@ def transfer_others(transfer_other_from,transfer_other_to):
 if __name__ == '__main__':
     # Process command-line options
     parser = OptionParser()
-    parser.add_option('-p', '--paint', help='Paint coins for tracking', dest='paint_txid', action='store')
+    parser.add_option('-p', '--paint', help='Paint coins for tracking. <asset:txid:n>', dest='asset_txid_n', action='store')
     parser.add_option('-n', '--new-address', help='Create new holding address for colored coins', dest='gen_address', default=False, action='store_true')
     parser.add_option('-l', '--list-colors', help='List of names of painted coins being tracked', dest='list_colors', default=False, action='store_true')
     parser.add_option('-u', '--update-ownership', help='Update ownership info for painted coins', dest='update_name', action='store')
@@ -680,9 +680,9 @@ if __name__ == '__main__':
 
     if opts.gen_address:
         print generate_holding_address()
-    if opts.paint_txid:
-        assetname,txid,n = opts.paint_txid.split(":")
-        start_tracking_coins(assetname,txid+":"+n)
+    if opts.asset_txid_n:
+        asset,txid,n = opts.asset_txid_n.split(":")
+        start_tracking_coins(asset,txid+":"+n)
     if opts.holders_name:
         show_holders(opts.holders_name)
     if opts.update_name:
