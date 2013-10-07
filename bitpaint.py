@@ -288,8 +288,8 @@ def b58decode(v, length):
 def makek():
     # Create a dictionary with address as key and private-key
     # as value
-    a = config.get('HoldingAddresses', 'addresses').split("::")
-    p = config.get('HoldingAddresses', 'private_keys').split("::")
+    a = configListGet('HoldingAddress','addresses')
+    p = configListGet('HoldingAddress','private_keys')
     k = {}
     for a in zip(a,p):
         k[a[0]] = a[1]
@@ -523,7 +523,7 @@ def get_non_asset_funds(addr):
     asset_txids = []
     for s in config.sections():
         if s in reserved_sections: continue
-        for txid in config.get(s, 'txid').split("::"):
+        for txid in configListGet(s,'txid'):
             asset_txids.append(txid)
     naf = []
     for u in unspent:
@@ -539,69 +539,64 @@ def get_non_asset_funds(addr):
 def generate_holding_address():
     # Generate an address, add it to the config file
     addr, pkey = get_addr(gen_eckey())
-    addresses = config.get('HoldingAddresses', 'addresses')
-    private_keys = config.get('HoldingAddresses', 'private_keys')
-    if len(addresses) > 5:
-        config.set('HoldingAddresses', 'addresses', '::'.join([addresses,addr]))
-        config.set('HoldingAddresses', 'private_keys', '::'.join([private_keys,pkey]))
-    else:
-        config.set('HoldingAddresses', 'addresses', addr)
-        config.set('HoldingAddresses', 'private_keys', pkey)
+    addresses, private_keys = configListGet("HoldingAddresses", "addresses"), configListGet("HoldingAddresses", "private_keys")
+    configListAppendValue("HoldingAddresses", "addresses", addr)
+    configListAppendValue("HoldingAddresses", "private_keys", pkey)
     config.write(open(config_file,'w'))
     return "Address added: "+addr
 
-def update_tracked_coins(name):
+def update_tracked_coins(assetname):
     # Update the list of owners of a tracked coin
     # and write to the config file
-    root_tx = config.get(name, "root_tx")
+    root_tx = configListGet(assetname, "root_tx")[0]
     current_holders = get_current_holders(root_tx)
-    holding_addresses = ""
-    holding_amounts = ""
-    holding_txids = ""
+    holding_addresses = []
+    holding_amounts = []
+    holding_txids = []
     total = 0.0
     for h in current_holders:
-        holding_addresses += "::" + h[0]
-        holding_amounts += "::" + str(h[1])
-        holding_txids += "::" + h[2]
-    config.set(name, "holders", holding_addresses[2:])
-    config.set(name, "amounts", holding_amounts[2:])
-    config.set(name, "txid", holding_txids[2:])
+        holding_addresses.append(h[0])
+        holding_amounts.append(str(h[1]))
+        holding_txids.append(h[2])
+    configListSet(assetname, "holders", holding_addresses)
+    configListSet(assetname, "amounts", holding_amounts)
+    configListSet(assetname, "txid", holding_txids)
     config.write(open(config_file,'w'))
 
-def start_tracking_coins(name,txid):
+def start_tracking_coins(assetname,txid):
     # Give a name of a tracked coin, together with a
     # root output that will be used to track it.
     # Write this to the config file, and update the
     # list of owners.
-    if name in config.sections():
-        return name+" already exists."
-    config.add_section(name)
-    config.set(name, "root_tx", txid)
-    config.set(name, "holders", "")
-    config.set(name, "amounts", "")
-    config.set(name, "txid", "")
+    if assetname in config.sections():
+        return assetname+" already exists."
+    config.add_section(assetname)
+    config.set(assetname, "root_tx", [txid])
+    config.set(assetname, "holders", "[]")
+    config.set(assetname, "amounts", "[]")
+    config.set(assetname, "txid", "[]")
     config.write(open(config_file,'w'))
-    update_tracked_coins(name)
+    update_tracked_coins(assetname)
 
-def show_holders(name):
-    holders = config.get(name, "holders").split("::")
-    amounts = config.get(name, "amounts").split("::")
-    txids = config.get(name,"txid").split("::")
+def show_holders(assetname):
+    holders = configListGet(assetname, "holders")
+    amounts = configListGet(assetname, "amounts")
+    txids = configListGet(assetname,"txid")
     total = 0.0
-    print "*** %s ***" % (name,)
+    print "*** %s ***" % (assetname,)
     for h in zip(holders,amounts,txids):
         print h[0],h[1],h[2]
         total += float(h[1])
-    print "** Total %s: %f **" % (name,total)
+    print "** Total %s: %f **" % (assetname,total)
 
 def show_my_holdings():
     sections = config.sections()
-    my_holding_addresses = config.get('HoldingAddresses', 'addresses').split("::")
+    my_holding_addresses = configListGet('HoldingAddresses', 'addresses')
     for s in sections:
         if s in reserved_sections: continue
-        holders = config.get(s, "holders").split("::")
-        amounts = config.get(s, "amounts").split("::")
-        txids = config.get(s, "txid").split("::")
+        holders = configListGet(s, "holders")
+        amounts = configListGet(s, "amounts")
+        txids = configListGet(s, "txid")
         for h in holders:
             if h in my_holding_addresses:
                 total_dividends = 0.0
@@ -610,7 +605,7 @@ def show_my_holdings():
                 print s,amounts[holders.index(h)],"( div:",total_dividends,")",h,txids[holders.index(h)]
 
 def show_my_holding_addresses():
-    my_holding_addresses = config.get('HoldingAddresses', 'addresses').split("::")
+    my_holding_addresses = configListGet('HoldingAddresses', 'addresses')
     for a in my_holding_addresses:
         print a
 
@@ -618,7 +613,7 @@ def show_colors():
     sections = config.sections()
     for s in sections:
         if s in reserved_sections: continue
-        print s,config.get(s, 'root_tx')
+        print s,config.get(s, 'root_tx')[0]
 
 def transfer_asset(sender, receivers,fee_size=None):
     address,txid,n = sender.split(":")
@@ -636,9 +631,9 @@ def transfer_asset(sender, receivers,fee_size=None):
         tx_outputs.append((change_address, int(1e8*change_amount)))
     raw_transaction = maketx(tx_input, tx_outputs)
 
-def pay_to_shareholders(name, wallet_acct, total_payment_amount):
-    holders = config.get(name, "holders").split("::")
-    amounts = config.get(name, "amounts").split("::")
+def pay_to_shareholders(assetname, wallet_acct, total_payment_amount):
+    holders = configListGet(assetname, "holders")
+    amounts = configListGet(assetname, "amounts")
     total = 0.0
     for a in amounts:
         total += float(a)
@@ -686,8 +681,8 @@ if __name__ == '__main__':
     if opts.gen_address:
         print generate_holding_address()
     if opts.paint_txid:
-        name,txid,n = opts.paint_txid.split(":")
-        start_tracking_coins(name,txid+":"+n)
+        assetname,txid,n = opts.paint_txid.split(":")
+        start_tracking_coins(assetname,txid+":"+n)
     if opts.holders_name:
         show_holders(opts.holders_name)
     if opts.update_name:
