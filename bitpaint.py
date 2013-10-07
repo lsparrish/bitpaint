@@ -28,6 +28,8 @@ Changes:
  - Address generation is now handled by bitcoind via the jsonrpc
    interface rather than by python code. This reduces the number of
    libraries we need, since jsonrpc was already a requirement.
+
+Based on code published by bitfair at https://bitcointalk.org/index.php?topic=117630.0
 """
 
 # Import libraries
@@ -184,7 +186,6 @@ def maketx(inputs, outputs, send=False):
     return final_t['hex']
 
 ### End: Transaction code
-
 
 ### Start: Blockchain Inspection/Traversion code
 def translate_bctx_to_bitcoindtx(tx_bc):
@@ -378,7 +379,6 @@ def get_unspent(addr):
     return unspent
     # * End of blockchain.info bug workaround
 
-
 def get_non_asset_funds(addr):
     unspent = get_unspent(addr)
     asset_txids = []
@@ -394,7 +394,6 @@ def get_non_asset_funds(addr):
     return naf
 
 ### End: Blockchain Inspection/Traversion code
-
 
 ### Start: "User-facing" methods
 def generate_holding_address():
