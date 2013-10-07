@@ -3,19 +3,31 @@
 """
 bitpaint.py
 ~~~~~~~~~~~
-Simple command-line utility to use the Bitcoin blockchain to track and manage so-called "colored coins", or "smart contracts/securities".
+Analyze the Bitcoin blockchain to track and manage "colored coins" which
+are distinguished based on their origin.
 
 Caution:
-- Private keys are stored in plaintext in your configuration file
-- Colored coin tracking is implemented following the "output
-  ordering" method, but with very few test cases available,
-  it is currently difficult to say whether or not the approach is
-  compatible with approaches implemented elsewhere.
-- Remember to include a transaction fee when transferring assets,
-  so that the transaction will confirm.
+ - Private keys are stored in plaintext in your configuration file.
+ - The ordering-based approach hasn't been tested much yet and might
+   be incompatible with other kinds of colored coins.
+ - Small coin amounts may be seen as dust by the blockchain, and
+   may not confirm without a transaction fee.
 
-Donations welcome: 1GsnaaAWYMb7yPwBQ19bSLLMTtsfSyjqg3
+License: Please be cautious when using it, but feel free to criticise,
+modify and contribute to the code.
 
+If you like it, support it:
+    1GsnaaAWYMb7yPwBQ19bSLLMTtsfSyjqg3 (bitfair)
+    1D5o3Gwm8hbMzgiWi89JWxpnPKhpjx6DiE (lsparrish)
+
+Changes:
+ - Config file now distinguishes lists based on newlines rather than
+   plus signs. This adds readability, but breaks compatiblity with the
+   old style of config file. Make sure to regenerate or edit the 
+   config file for compatibility.
+ - Address generation is now handled by bitcoind via the jsonrpc
+   interface rather than by python code. This reduces the number of
+   libraries we need, since jsonrpc was already a requirement.
 """
 
 # Import libraries
