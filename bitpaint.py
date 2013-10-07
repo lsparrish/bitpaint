@@ -21,7 +21,7 @@ Donations welcome: 1GsnaaAWYMb7yPwBQ19bSLLMTtsfSyjqg3
 # Import libraries
 import jsonrpc
 from optparse import OptionParser
-import urllib2, ConfigParser, ctypes, ctypes.util, hashlib, simplejson as json, os, sys, binascii, collections
+import urllib2, ConfigParser, simplejson as json, os, binascii
 jsonrpc.dumps = json.dumps
 
 ### Start: Generic helpers
