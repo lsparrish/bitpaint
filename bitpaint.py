@@ -20,23 +20,12 @@ If you like it, support it:
     1GsnaaAWYMb7yPwBQ19bSLLMTtsfSyjqg3 (bitfair)
     1D5o3Gwm8hbMzgiWi89JWxpnPKhpjx6DiE (lsparrish)
 
-Changes:
- - Config file now distinguishes lists based on newlines rather than
-   plus signs. This adds readability, but breaks compatiblity with the
-   old style of config file. Make sure to regenerate or edit the 
-   config file for compatibility.
- - Address generation is now handled by bitcoind via the jsonrpc
-   interface rather than by python code. This reduces the number of
-   libraries we need, since jsonrpc was already a requirement.
-
 Based on code published by bitfair at https://bitcointalk.org/index.php?topic=117630.0
 """
 
 # Import libraries
-import jsonrpc
 from optparse import OptionParser
-import urllib2, ConfigParser, simplejson as json, os, binascii
-jsonrpc.dumps = json.dumps
+import ConfigParser, jsonrpc, urllib2, os, binascii
 
 ### Start: Generic helpers
 def JSONtoAmount(value):
@@ -44,7 +33,6 @@ def JSONtoAmount(value):
 def AmountToJSON(amount):
     return float(amount / 1e8)
 ### End: Generic helpers
-
 
 ### Start: Create/Read Config
 # Here we create a configuration file if one does not exist already.
@@ -150,8 +138,8 @@ def b58decode(v, length):
 def makek():
     # Create a dictionary with address as key and private-key
     # as value
-    a = configListGet('HoldingAddress','addresses')
-    p = configListGet('HoldingAddress','private_keys')
+    a = configListGet('HoldingAddresses','addresses')
+    p = configListGet('HoldingAddresses','private_keys')
     k = {}
     for a in zip(a,p):
         k[a[0]] = a[1]
@@ -199,7 +187,7 @@ def translate_bctx_to_bitcoindtx(tx_bc):
         v = {}
         v['scriptSig'] = {'asm': '', 'hex': ''}
         v['sequence'] = 4294967295
-        v['txid'] = json.loads(urllib2.urlopen("http://blockchain.info/rawtx/%s" % (i['prev_out']['tx_index'],)).read())['hash']
+        v['txid'] = jsonrpc.loads(urllib2.urlopen("http://blockchain.info/rawtx/%s" % (i['prev_out']['tx_index'],)).read())['hash']
         v['vout'] = i['prev_out']['n']
         tx['vin'].append(v)
     for i in range(len(tx_bc['out'])):
@@ -225,7 +213,7 @@ def gettx(txid):
     except:
         print "Error getting transaction "+txid+" details from bitcoind, trying blockchain.info"
         print "http://blockchain.info/rawtx/%s" % (txid,)
-        tx_bc = json.loads(urllib2.urlopen("http://blockchain.info/rawtx/%s" % (txid,)).read())
+        tx_bc = jsonrpc.loads(urllib2.urlopen("http://blockchain.info/rawtx/%s" % (txid,)).read())
         tx = translate_bctx_to_bitcoindtx(tx_bc)
     return tx
 
@@ -234,7 +222,7 @@ def getaddresstxs(address):
     # Uses blockchain.info to get this, bitcoind API
     # apparently has no equivalent function.
     address_url="http://blockchain.info/address/"+address+"?format=json"
-    address_info = json.loads(urllib2.urlopen(address_url).read())
+    address_info = jsonrpc.loads(urllib2.urlopen(address_url).read())
     tx_list = []
     for tx in address_info['txs']:
         tx_list.append(tx['hash'])
@@ -345,8 +333,8 @@ def get_unspent(addr):
     # Get the unspent transactions for an address
     # * Following section is disabled because blockchain.info has a bug that
     #   returns the wrong transaction IDs.
-    #d = json.loads(urllib2.urlopen('http://blockchain.info/unspent?address=%s' % addr).read())
-    #return d
+    #d = jsonrpc.loads(urllib2.urlopen('http://blockchain.info/unspent?address=%s' % addr).read())
+    #return d['unspent_outputs']
     # * Start of blockchain.info bug workaround:
     txs = getaddresstxs(addr)
     received = []
@@ -518,7 +506,6 @@ def transfer_others(transfer_other_from,transfer_other_to):
     outputs = [(transfer_other_to, total_value-fee)]
     maketx(inputs,outputs,send=False)
     print "Paid",float(total_value-fee)/1e8,"to",transfer_other_to
-
 
 if __name__ == '__main__':
     # Process command-line options
