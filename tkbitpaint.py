@@ -10,7 +10,11 @@ def NewAddressButton():
 def MyHoldingsButton():
     print bitpaint.show_my_holdings()
 
+def quit(x):
+    tk.destroy()
+
 tk = Tkinter.Tk()
+tk.bind('<Key-Escape>',quit)
 frame = Tkinter.Frame(tk, relief=RIDGE, borderwidth=2)
 frame.pack(fill=BOTH,expand=1)
 label = Tkinter.Label(frame, text="BitPaint")
